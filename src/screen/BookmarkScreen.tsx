@@ -15,6 +15,7 @@ import { BookmarkStackParamList, MovieItem } from '../navigator/types';
 import { watchlistStorage, WatchlistItem } from '../storage/watchlistStorage';
 import { movieApi, AccountDetailsResponse } from '../api/movieApi';
 import { API_CONFIG } from '../api/config';
+import AppLogoTheMovieDb from '../assets/app_logo_the_movie_db.svg';
 
 type BookmarkMovie = MovieItem & {
   rating: number;
@@ -30,15 +31,7 @@ const gravatarBaseUrl = 'https://www.gravatar.com/avatar';
 const Logo = () => {
   return (
     <View style={styles.logoContainer}>
-      <Text style={styles.logoText}>THE</Text>
-      <View style={styles.logoRow}>
-        <Text style={styles.logoText}>MOVIE</Text>
-        <View style={styles.logoPillSmall} />
-      </View>
-      <View style={styles.logoRow}>
-        <Text style={styles.logoText}>DB</Text>
-        <View style={styles.logoPillLarge} />
-      </View>
+      <AppLogoTheMovieDb width={100} height={100} />
     </View>
   );
 };
