@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,6 +21,55 @@ import {
 import { watchlistStorage, WatchlistItem } from '../storage/watchlistStorage';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'MovieDetail'>;
+
+const FONT = {
+  regular: 'SourceSans3-Regular',
+  semiBold: 'SourceSans3-SemiBold',
+  bold: 'SourceSans3-Bold',
+  italic: 'SourceSans3-Italic',
+};
+
+const CIRCLE_SIZE = 70;
+const STROKE_WIDTH = 4;
+const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
+const CENTER = CIRCLE_SIZE / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+function UserScoreRing({ score }: { score: number }) {
+  const progress = Math.min(100, Math.max(0, score)) / 100;
+  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  return (
+    <View style={styles.ringWrapper}>
+      <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.ringSvg}>
+        {/* Dark grey track */}
+        <Circle
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          stroke="#4a4a4a"
+          strokeWidth={STROKE_WIDTH}
+          fill="transparent"
+        />
+        {/* Green progress arc - starts from top (-90°) */}
+        <Circle
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          stroke="#00e676"
+          strokeWidth={STROKE_WIDTH}
+          fill="transparent"
+          strokeDasharray={CIRCUMFERENCE}
+          strokeDashoffset={strokeDashoffset}
+          transform={`rotate(-90 ${CENTER} ${CENTER})`}
+          strokeLinecap="round"
+        />
+      </Svg>
+      <View style={styles.ringScoreOverlay}>
+        <Text style={styles.ringScoreText}>{score}%</Text>
+      </View>
+    </View>
+  );
+}
 
 const posterBaseUrl = 'https://image.tmdb.org/t/p/w500';
 const profileBaseUrl = 'https://image.tmdb.org/t/p/w185';
@@ -141,7 +191,7 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#ffffff' }}>Loading...</Text>
+          <Text style={[styles.loadingErrorText, { color: '#ffffff' }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
@@ -158,16 +208,11 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
             paddingHorizontal: 24,
           }}
         >
-          <Text style={{ color: '#ffffff', marginBottom: 12 }}>
+          <Text style={[styles.loadingErrorText, { color: '#ffffff', marginBottom: 12 }]}>
             {error || 'Movie not found'}
           </Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text
-              style={{
-                color: '#ffffff',
-                textDecorationLine: 'underline',
-              }}
-            >
+            <Text style={[styles.loadingErrorText, styles.goBackText]}>
               Go Back
             </Text>
           </TouchableOpacity>
@@ -181,13 +226,17 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
       <ScrollView>
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.headerBack}
+          >
             <Ionicons name="chevron-back" size={28} color="#fff" />
           </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>
-            {movie.title} ({movie.year})
-          </Text>
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle}>
+              {movie.title} ({movie.year})
+            </Text>
+          </View>
         </View>
 
         {/* TOP INFO */}
@@ -211,11 +260,10 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
 
         {/* SCORE */}
         <View style={styles.scoreSection}>
-          <View style={styles.circle}>
-            <Text style={styles.score}>{movie.userScore}%</Text>
+          <View style={styles.scoreLeft}>
+            <UserScoreRing score={movie.userScore} />
+            <Text style={styles.scoreLabel}>User Score</Text>
           </View>
-          <Text style={styles.scoreLabel}>User Score</Text>
-
           <View style={styles.crew}>
             {movie.director ? (
               <>
@@ -334,7 +382,13 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-
+  loadingErrorText: {
+    fontFamily: FONT.regular,
+  },
+  goBackText: {
+    color: '#ffffff',
+    textDecorationLine: 'underline',
+  },
   container: {
     flex: 1,
     backgroundColor: '#1BA3C6',
@@ -345,12 +399,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
   },
-
+  headerBack: {
+    position: 'absolute',
+    left: 15,
+    zIndex: 1,
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     color: '#fff',
     fontSize: 20,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    fontFamily: FONT.bold,
+    textAlign: 'center',
   },
 
   topSection: {
@@ -376,73 +439,77 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     alignSelf: 'flex-start',
     marginBottom: 8,
+    fontFamily: FONT.regular,
   },
-
   text: {
     color: '#fff',
     marginBottom: 4,
+    fontFamily: FONT.regular,
   },
 
   scoreSection: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
   },
-
-  circle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 4,
-    borderColor: '#00e676',
+  scoreLeft: {
+    alignItems: 'center',
+  },
+  ringWrapper: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  score: {
+  ringSvg: {
+    position: 'absolute',
+  },
+  ringScoreOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ringScoreText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: FONT.bold,
   },
-
   scoreLabel: {
     color: '#fff',
-    marginLeft: 10,
+    fontFamily: FONT.bold,
+    marginTop: 4,
   },
 
   crew: {
-    marginLeft: 40,
+    marginLeft: 32,
+    flex: 1,
   },
-
   crewName: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: FONT.bold,
   },
-
   crewRole: {
     color: '#ddd',
     marginBottom: 8,
+    fontFamily: FONT.regular,
   },
-
   tagline: {
     color: '#fff',
-    fontStyle: 'italic',
+    fontFamily: FONT.italic,
     padding: 20,
   },
-
   overviewTitle: {
     color: '#fff',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: FONT.bold,
     paddingHorizontal: 20,
   },
-
   overview: {
     color: '#fff',
+    fontFamily: FONT.regular,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
-
   watchlistButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -456,7 +523,7 @@ const styles = StyleSheet.create({
 
   watchlistText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: FONT.bold,
   },
 
   whiteSection: {
@@ -467,7 +534,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: FONT.bold,
     color: '#000',
     paddingHorizontal: 20,
     marginBottom: 12,
@@ -500,14 +567,14 @@ const styles = StyleSheet.create({
 
   castName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONT.semiBold,
     color: '#000',
     marginTop: 8,
     textAlign: 'center',
   },
-
   castCharacter: {
     fontSize: 12,
+    fontFamily: FONT.regular,
     color: '#666',
     marginTop: 2,
     textAlign: 'center',
@@ -543,13 +610,13 @@ const styles = StyleSheet.create({
 
   recTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: FONT.semiBold,
     color: '#000',
     marginTop: 6,
   },
-
   recScore: {
     fontSize: 12,
+    fontFamily: FONT.regular,
     color: '#666',
     marginTop: 2,
   },
