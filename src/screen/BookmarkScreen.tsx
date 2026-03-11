@@ -15,9 +15,16 @@ import { watchlistStorage, WatchlistItem } from '../storage/watchlistStorage';
 import { movieApi } from '../api/movieApi';
 import { API_CONFIG } from '../api/config';
 import AppFlashList from '../components/AppFlashList';
+import CategoryDropdown from '../components/CategoryDropdown';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { bookmarkActions } from '../store';
 import AppLogoTheMovieDb from '../assets/app_logo_the_movie_db.svg';
+
+const sortOrderOptions = [
+  { label: 'Alphabetical order', value: 'alphabetical' },
+  { label: 'Rating', value: 'rating' },
+  { label: 'Release date', value: 'release_date' },
+];
 
 type BookmarkMovie = MovieItem & {
   rating: number;
@@ -81,7 +88,7 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const bookmark = useAppSelector(state => state.bookmark);
   const { items: movies, account, filter } = bookmark;
-  const { filterBy, orderBy } = filter;
+  const { sortOrder } = filter;
 
   useEffect(() => {
     if (!API_CONFIG.ACCOUNT_ID) return;
@@ -116,26 +123,27 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
   const sortedMovies = useMemo(() => {
     const data = [...movies];
     data.sort((a, b) => {
-      let result = 0;
-      if (filterBy === 'rating') {
-        result = a.rating - b.rating;
-      } else {
-        result = new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
+      switch (sortOrder) {
+        case 'alphabetical':
+          return (a.title || '').localeCompare(b.title || '');
+        case 'rating':
+          return b.rating - a.rating; // higher first
+        case 'release_date': {
+          const aTime = new Date(a.releaseDate).getTime();
+          const bTime = new Date(b.releaseDate).getTime();
+          return bTime - aTime; // newest first
+        }
+        default:
+          return 0;
       }
-      return orderBy === 'asc' ? result : -result;
     });
     return data;
-  }, [movies, filterBy, orderBy]);
+  }, [movies, sortOrder]);
 
   const handleRemove = (id: string) => {
     watchlistStorage.remove(id);
     dispatch(bookmarkActions.removeItem(id));
   };
-
-  const toggleOrder = () => {
-    dispatch(bookmarkActions.setOrderBy(orderBy === 'asc' ? 'desc' : 'asc'));
-  };
-  
 
   const renderHeader = () => {
     return (
@@ -184,36 +192,15 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>My Watchlist</Text>
 
-          <View style={styles.filterRow}>
-            <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>Filter by:</Text>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={styles.filterValueWrap}
-                onPress={() =>
-                  dispatch(bookmarkActions.setFilterBy(filterBy === 'rating' ? 'date' : 'rating'))
-                }
-              >
-                <Text style={styles.filterValue}>
-                  {filterBy === 'rating' ? 'Rating' : 'Date Added'}
-                </Text>
-                <Text style={styles.filterArrow}>⌄</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.orderGroup}>
-              <Text style={styles.filterLabel}>Order:</Text>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={styles.orderButton}
-                onPress={toggleOrder}
-              >
-                <Text style={styles.orderIcon}>
-                  {orderBy === 'asc' ? '↑' : '↓'}
-                </Text>
-              </TouchableOpacity>
+          <View style={styles.filterByRow}>
+            <Text style={styles.filterLabel}>Filter by</Text>
+            <View style={styles.filterDropdownWrap}>
+            <CategoryDropdown
+              options={sortOrderOptions}
+              value={sortOrder}
+              onChange={value => dispatch(bookmarkActions.setSortOrder(value as 'alphabetical' | 'rating' | 'release_date'))}
+              placeholder="Select sort order"
+            />
             </View>
           </View>
         </View>
@@ -383,21 +370,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
-  filterRow: {
+  filterByRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-
-  filterGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  orderGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 8,
+    gap: 12,
   },
 
   filterLabel: {
@@ -406,33 +383,8 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
 
-  filterValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  filterValue: {
-    fontSize: 14,
-    color: '#1eb6dd',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-
-  filterArrow: {
-    fontSize: 16,
-    color: '#1eb6dd',
-    marginLeft: 5,
-  },
-
-  orderButton: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-
-  orderIcon: {
-    fontSize: 18,
-    color: '#111111',
-    fontWeight: '700',
+  filterDropdownWrap: {
+    flex: 1,
   },
 
   movieCard: {
