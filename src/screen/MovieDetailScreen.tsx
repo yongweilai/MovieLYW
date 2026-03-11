@@ -19,8 +19,22 @@ import {
   RecommendationItem,
 } from '../api/movieApi';
 import { watchlistStorage, WatchlistItem } from '../storage/watchlistStorage';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { movieDetailActions } from '../store';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'MovieDetail'>;
+
+type DetailUIState = {
+  loading: boolean;
+  error: string | null;
+  isBookmarked: boolean;
+};
+
+const initialUIState: DetailUIState = {
+  loading: true,
+  error: null,
+  isBookmarked: false,
+};
 
 const FONT = {
   regular: 'SourceSans3-Regular',
@@ -29,10 +43,14 @@ const FONT = {
   italic: 'SourceSans3-Italic',
 };
 
+// Visual ring size is 70, but SVG needs extra canvas for thick strokes (otherwise it gets clipped).
 const CIRCLE_SIZE = 70;
 const STROKE_WIDTH = 4;
+const OUTER_RIM_EXTRA = 6; // extra thickness added on top of STROKE_WIDTH
+const SVG_PADDING = (STROKE_WIDTH + OUTER_RIM_EXTRA) / 2;
+const SVG_SIZE = CIRCLE_SIZE + SVG_PADDING * 2;
 const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
-const CENTER = CIRCLE_SIZE / 2;
+const CENTER = SVG_SIZE / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 function UserScoreRing({ score }: { score: number }) {
@@ -40,13 +58,24 @@ function UserScoreRing({ score }: { score: number }) {
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
   return (
     <View style={styles.ringWrapper}>
-      <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.ringSvg}>
-        {/* Dark grey track */}
+      <Svg width={SVG_SIZE} height={SVG_SIZE} style={styles.ringSvg}>
+        {/* Outer dark rim */}
         <Circle
           cx={CENTER}
           cy={CENTER}
           r={RADIUS}
-          stroke="#4a4a4a"
+          stroke="#071b27"
+          strokeWidth={STROKE_WIDTH + OUTER_RIM_EXTRA}
+          fill="transparent"
+        />
+        {/* Inner background */}
+        <Circle cx={CENTER} cy={CENTER} r={RADIUS - STROKE_WIDTH} fill="#071b27" />
+        {/* Grey track */}
+        <Circle
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          stroke="#6d7781"
           strokeWidth={STROKE_WIDTH}
           fill="transparent"
         />
@@ -65,7 +94,10 @@ function UserScoreRing({ score }: { score: number }) {
         />
       </Svg>
       <View style={styles.ringScoreOverlay}>
-        <Text style={styles.ringScoreText}>{score}%</Text>
+        <View style={styles.ringScoreRow}>
+          <Text style={styles.ringScoreAmount}>{score}</Text>
+          <Text style={styles.ringScorePercent}>%</Text>
+        </View>
       </View>
     </View>
   );
@@ -132,21 +164,17 @@ function movieToWatchlistItem(movie: Movie): WatchlistItem {
 
 export default function MovieDetailScreen({ route, navigation }: Props) {
   const { movieId } = route.params;
-  const [movie, setMovie] = useState<Movie | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
-  const [cast, setCast] = useState<CastMember[]>([]);
-  const [recommendations, setRecommendations] = useState<RecommendationItem[]>(
-    []
-  );
+  const dispatch = useAppDispatch();
+  const { movie, cast, recommendations } = useAppSelector(state => state.movieDetail);
+  const [ui, setUI] = useState<DetailUIState>(initialUIState);
+  const { loading, error, isBookmarked } = ui;
 
   useEffect(() => {
     let isMounted = true;
+    dispatch(movieDetailActions.clearDetail());
+    setUI(prev => ({ ...prev, loading: true, error: null }));
 
     const fetchDetail = async () => {
-      setLoading(true);
-      setError(null);
       try {
         const [detailResult, creditsResult, recsResult] = await Promise.all([
           movieApi.getMovieDetail(movieId),
@@ -158,25 +186,34 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
 
         if (detailResult.success) {
           const mapped = mapDetailToMovie(detailResult.data);
-          setMovie(mapped);
-          setIsBookmarked(watchlistStorage.isInWatchlist(mapped.id));
+          dispatch(
+            movieDetailActions.setDetail({
+              movie: mapped,
+              cast: creditsResult.success && creditsResult.data.cast
+                ? creditsResult.data.cast
+                : [],
+              recommendations:
+                recsResult.success && recsResult.data.results
+                  ? recsResult.data.results
+                  : [],
+            })
+          );
+          setUI(prev => ({
+            ...prev,
+            loading: false,
+            error: null,
+            isBookmarked: watchlistStorage.isInWatchlist(mapped.id),
+          }));
         } else {
-          setError(detailResult.message ?? 'Failed to load movie detail');
-        }
-
-        if (creditsResult.success && creditsResult.data.cast) {
-          setCast(creditsResult.data.cast);
-        }
-        if (recsResult.success && recsResult.data.results) {
-          setRecommendations(recsResult.data.results);
+          setUI(prev => ({
+            ...prev,
+            loading: false,
+            error: detailResult.message ?? 'Failed to load movie detail',
+          }));
         }
       } catch (e) {
         if (!isMounted) return;
-        setError('Failed to load movie detail');
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setUI(prev => ({ ...prev, loading: false, error: 'Failed to load movie detail' }));
       }
     };
 
@@ -185,7 +222,7 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
     return () => {
       isMounted = false;
     };
-  }, [movieId]);
+  }, [movieId, dispatch]);
 
   if (loading) {
     return (
@@ -251,9 +288,13 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
             </Text>
 
             <Text style={styles.text}>{movie.genres}</Text>
-            <Text style={styles.text}>Status: {movie.status}</Text>
             <Text style={styles.text}>
-              Original Language: {movie.originalLanguage}
+              <Text style={styles.topLabel}>Status: </Text>
+              {movie.status}
+            </Text>
+            <Text style={styles.text}>
+              <Text style={styles.topLabel}>Original Language: </Text>
+              {movie.originalLanguage}
             </Text>
           </View>
         </View>
@@ -294,10 +335,10 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
             if (!movie) return;
             if (isBookmarked) {
               watchlistStorage.remove(movie.id);
-              setIsBookmarked(false);
+              setUI(prev => ({ ...prev, isBookmarked: false }));
             } else {
               watchlistStorage.add(movieToWatchlistItem(movie));
-              setIsBookmarked(true);
+              setUI(prev => ({ ...prev, isBookmarked: true }));
             }
           }}
         >
@@ -420,7 +461,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#fff',
     fontSize: 20,
-    fontFamily: FONT.bold,
+    fontFamily: FONT.semiBold,
     textAlign: 'center',
   },
 
@@ -454,6 +495,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontFamily: FONT.regular,
   },
+  topLabel: {
+    fontFamily: FONT.semiBold,
+  },
 
   scoreSection: {
     flexDirection: 'row',
@@ -464,8 +508,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ringWrapper: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
+    width: SVG_SIZE,
+    height: SVG_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -477,10 +521,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  ringScoreText: {
+  ringScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  ringScoreAmount: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: FONT.bold,
+  },
+  ringScorePercent: {
+    color: '#fff',
+    fontSize: 6,
+    fontFamily: FONT.bold,
+    marginTop: -2,
+    marginLeft: 2,
   },
   scoreLabel: {
     color: '#fff',
@@ -504,17 +559,19 @@ const styles = StyleSheet.create({
   tagline: {
     color: '#fff',
     fontFamily: FONT.italic,
+    fontSize: 20,
     padding: 20,
   },
   overviewTitle: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 24,
     fontFamily: FONT.bold,
     paddingHorizontal: 20,
   },
   overview: {
     color: '#fff',
     fontFamily: FONT.regular,
+    fontSize: 16,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
@@ -527,11 +584,14 @@ const styles = StyleSheet.create({
     padding: 12,
     justifyContent: 'center',
     borderRadius: 6,
+    width: 192,
+    alignSelf: 'flex-start',
   },
 
   watchlistText: {
     color: '#fff',
-    fontFamily: FONT.bold,
+    fontFamily: FONT.semiBold,
+    fontSize: 14,
   },
 
   whiteSection: {

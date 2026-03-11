@@ -1,15 +1,13 @@
 import type { AccountDetailsResponse } from '../../api/movieApi';
 import type { WatchlistItem } from '../../storage/watchlistStorage';
 
-export type BookmarkFilterType = 'rating' | 'date';
-export type BookmarkOrderType = 'asc' | 'desc';
+export type BookmarkSortOrder = 'alphabetical' | 'rating' | 'release_date';
 
 export type BookmarkState = {
   items: WatchlistItem[];
   account: AccountDetailsResponse | null;
   filter: {
-    filterBy: BookmarkFilterType;
-    orderBy: BookmarkOrderType;
+    sortOrder: BookmarkSortOrder;
   };
 };
 
@@ -17,8 +15,7 @@ const initialBookmarkState: BookmarkState = {
   items: [],
   account: null,
   filter: {
-    filterBy: 'rating',
-    orderBy: 'asc',
+    sortOrder: 'alphabetical',
   },
 };
 
@@ -26,8 +23,7 @@ export const BOOKMARK_ACTIONS = {
   SET_ITEMS: 'bookmark/setItems',
   SET_ACCOUNT: 'bookmark/setAccount',
   SET_FILTER: 'bookmark/setFilter',
-  SET_FILTER_BY: 'bookmark/setFilterBy',
-  SET_ORDER_BY: 'bookmark/setOrderBy',
+  SET_SORT_ORDER: 'bookmark/setSortOrder',
   REMOVE_ITEM: 'bookmark/removeItem',
 } as const;
 
@@ -35,8 +31,7 @@ export type BookmarkAction =
   | { type: typeof BOOKMARK_ACTIONS.SET_ITEMS; payload: WatchlistItem[] }
   | { type: typeof BOOKMARK_ACTIONS.SET_ACCOUNT; payload: AccountDetailsResponse | null }
   | { type: typeof BOOKMARK_ACTIONS.SET_FILTER; payload: Partial<BookmarkState['filter']> }
-  | { type: typeof BOOKMARK_ACTIONS.SET_FILTER_BY; payload: BookmarkFilterType }
-  | { type: typeof BOOKMARK_ACTIONS.SET_ORDER_BY; payload: BookmarkOrderType }
+  | { type: typeof BOOKMARK_ACTIONS.SET_SORT_ORDER; payload: BookmarkSortOrder }
   | { type: typeof BOOKMARK_ACTIONS.REMOVE_ITEM; payload: string };
 
 export function bookmarkReducer(state = initialBookmarkState, action: BookmarkAction): BookmarkState {
@@ -47,10 +42,8 @@ export function bookmarkReducer(state = initialBookmarkState, action: BookmarkAc
       return { ...state, account: action.payload };
     case BOOKMARK_ACTIONS.SET_FILTER:
       return { ...state, filter: { ...state.filter, ...action.payload } };
-    case BOOKMARK_ACTIONS.SET_FILTER_BY:
-      return { ...state, filter: { ...state.filter, filterBy: action.payload } };
-    case BOOKMARK_ACTIONS.SET_ORDER_BY:
-      return { ...state, filter: { ...state.filter, orderBy: action.payload } };
+    case BOOKMARK_ACTIONS.SET_SORT_ORDER:
+      return { ...state, filter: { ...state.filter, sortOrder: action.payload } };
     case BOOKMARK_ACTIONS.REMOVE_ITEM:
       return { ...state, items: state.items.filter(item => item.id !== action.payload) };
     default:
@@ -68,12 +61,8 @@ export const bookmarkActions = {
     type: BOOKMARK_ACTIONS.SET_FILTER,
     payload,
   }),
-  setFilterBy: (payload: BookmarkFilterType) => ({
-    type: BOOKMARK_ACTIONS.SET_FILTER_BY,
-    payload,
-  }),
-  setOrderBy: (payload: BookmarkOrderType) => ({
-    type: BOOKMARK_ACTIONS.SET_ORDER_BY,
+  setSortOrder: (payload: BookmarkSortOrder) => ({
+    type: BOOKMARK_ACTIONS.SET_SORT_ORDER,
     payload,
   }),
   removeItem: (payload: string) => ({ type: BOOKMARK_ACTIONS.REMOVE_ITEM, payload }),
