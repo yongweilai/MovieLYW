@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  FlatList,
   Image,
   StatusBar,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList, MovieItem } from '../navigator/types';
 import CategoryDropdown from '../components/CategoryDropdown';
+import AppFlashList from '../components/AppFlashList';
 import { movieApi, MovieListItem } from '../api/movieApi';
 import AppLogoTheMovieDb from '../assets/app_logo_the_movie_db.svg';
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
@@ -82,7 +82,10 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
   const [selectedSort, setSelectedSort] = useState('sort_by');
   const [rawMovies, setRawMovies] = useState<MovieListItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const handleSearchPress = () => {
     setAppliedSearch(search.trim());
@@ -135,47 +138,83 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('MovieDetail', { movieId: Number(movie.id) });
   };
 
-  const fetchMoviesByCategory = async (category: string) => {
-    setLoading(true);
-    setError(null);
+  const fetchMoviesByCategory = async (category: string, pageNum = 1) => {
+    if (pageNum === 1) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       let result;
       if (category === 'popular') {
-        result = await movieApi.moviePopularList();
+        result = await movieApi.moviePopularList(pageNum);
       } else if (category === 'upcoming') {
-        result = await movieApi.movieUpcomingList();
+        result = await movieApi.movieUpcomingList(pageNum);
       } else {
-        result = await movieApi.movieNowPlayingList();
+        result = await movieApi.movieNowPlayingList(pageNum);
       }
 
       if (result.success) {
-        setRawMovies(result.data.results ?? []);
+        const newResults = result.data.results ?? [];
+        if (pageNum === 1) {
+          setRawMovies(newResults);
+        } else {
+          setRawMovies(prev => [...prev, ...newResults]);
+        }
+        setPage(pageNum);
+        setTotalPages(result.data.total_pages ?? 1);
       } else {
-        setError(result.message || 'Failed to load movies');
-        setRawMovies([]);
+        if (pageNum === 1) {
+          setError(result.message || 'Failed to load movies');
+          setRawMovies([]);
+        }
       }
     } catch (e) {
-      setError('Failed to load movies');
-      setRawMovies([]);
+      if (pageNum === 1) {
+        setError('Failed to load movies');
+        setRawMovies([]);
+      }
     } finally {
-      setLoading(false);
+      if (pageNum === 1) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const loadMoreMovies = async () => {
+    if (loading || loadingMore || page >= totalPages) return;
+    setLoadingMore(true);
+    try {
+      await fetchMoviesByCategory(selectedCategory, page + 1);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    fetchMoviesByCategory(selectedCategory);
+    setPage(1);
+    setTotalPages(1);
+    fetchMoviesByCategory(selectedCategory, 1);
   }, [selectedCategory]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <View style={styles.container}>
-        <FlatList
+        <AppFlashList
           data={processedMovies}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          onEndReached={loadMoreMovies}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.loadingMoreWrap}>
+                <Text style={styles.loadingMoreText}>Loading more...</Text>
+              </View>
+            ) : null
+          }
           ListHeaderComponent={
             <>
               <Logo />
@@ -256,6 +295,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 90,
+  },
+  loadingMoreWrap: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: '#666666',
   },
 
   logoContainer: {

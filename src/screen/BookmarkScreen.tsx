@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Image,
   StatusBar,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { BookmarkStackParamList, MovieItem } from '../navigator/types';
 import { watchlistStorage, WatchlistItem } from '../storage/watchlistStorage';
 import { movieApi, AccountDetailsResponse } from '../api/movieApi';
 import { API_CONFIG } from '../api/config';
+import AppFlashList from '../components/AppFlashList';
 import AppLogoTheMovieDb from '../assets/app_logo_the_movie_db.svg';
 
 type BookmarkMovie = MovieItem & {
@@ -231,7 +231,7 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       <View style={styles.container}>
-        <FlatList
+        <AppFlashList
           data={sortedMovies}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
