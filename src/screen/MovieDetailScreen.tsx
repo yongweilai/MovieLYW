@@ -161,7 +161,7 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
           setMovie(mapped);
           setIsBookmarked(watchlistStorage.isInWatchlist(mapped.id));
         } else {
-          setError(detailResult.message || 'Failed to load movie detail');
+          setError(detailResult.message ?? 'Failed to load movie detail');
         }
 
         if (creditsResult.success && creditsResult.data.cast) {
@@ -315,65 +315,73 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
         <View style={styles.whiteSection}>
           {/* Top Billed Cast */}
           <Text style={styles.sectionTitle}>Top Billed Cast</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.castList}
-          >
-            {cast.map((member) => (
-              <View key={member.id} style={styles.castCard}>
-                <Image
-                  source={{
-                    uri: member.profile_path
-                      ? `${profileBaseUrl}${member.profile_path}`
-                      : undefined,
-                  }}
-                  style={styles.castPhotoRect}
-                />
-                <Text style={styles.castName} numberOfLines={2}>
-                  {member.name}
-                </Text>
-                <Text style={styles.castCharacter} numberOfLines={1}>
-                  {member.character}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
+          {cast.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.castList}
+            >
+              {cast.map((member) => (
+                <View key={member.id} style={styles.castCard}>
+                  <Image
+                    source={{
+                      uri: member.profile_path
+                        ? `${profileBaseUrl}${member.profile_path}`
+                        : undefined,
+                    }}
+                    style={styles.castPhotoRect}
+                  />
+                  <Text style={styles.castName} numberOfLines={2}>
+                    {member.name}
+                  </Text>
+                  <Text style={styles.castCharacter} numberOfLines={1}>
+                    {member.character}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.emptySectionText}>No top billed cast</Text>
+          )}
 
           {/* Recommendation */}
           <View style={styles.recSection}>
             <Text style={styles.sectionTitle}>Recommendation</Text>
-            <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recList}
-          >
-            {recommendations.map((rec) => (
-              <TouchableOpacity
-                key={rec.id}
-                style={styles.recCard}
-                onPress={() =>
-                  navigation.push('MovieDetail', { movieId: rec.id })
-                }
-                activeOpacity={0.8}
+            {recommendations.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recList}
               >
-                <Image
-                  source={{
-                    uri: rec.poster_path
-                      ? `${posterBaseUrl}${rec.poster_path}`
-                      : undefined,
-                  }}
-                  style={styles.recPosterRect}
-                />
-                <Text style={styles.recTitle} numberOfLines={2}>
-                  {rec.title}
-                </Text>
-                <Text style={styles.recScore}>
-                  {Math.round(rec.vote_average * 10)}%
-                </Text>
-              </TouchableOpacity>
-            ))}
-            </ScrollView>
+                {recommendations.map((rec) => (
+                  <TouchableOpacity
+                    key={rec.id}
+                    style={styles.recCard}
+                    onPress={() =>
+                      navigation.push('MovieDetail', { movieId: rec.id })
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={{
+                        uri: rec.poster_path
+                          ? `${posterBaseUrl}${rec.poster_path}`
+                          : undefined,
+                      }}
+                      style={styles.recPosterRect}
+                    />
+                    <Text style={styles.recTitle} numberOfLines={2}>
+                      {rec.title}
+                    </Text>
+                    <Text style={styles.recScore}>
+                      {Math.round(rec.vote_average * 10)}%
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.emptySectionText}>No Recommendation</Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -538,6 +546,14 @@ const styles = StyleSheet.create({
     color: '#000',
     paddingHorizontal: 20,
     marginBottom: 12,
+  },
+  emptySectionText: {
+    fontFamily: FONT.regular,
+    fontSize: 15,
+    color: '#666',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    textAlign: 'center',
   },
 
   castList: {

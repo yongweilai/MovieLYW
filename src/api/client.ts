@@ -50,6 +50,22 @@ class ApiClient {
     }
   }
 
+  private statusMessage(status: number | undefined): string {
+    if (status === undefined) return '';
+    const map: Record<number, string> = {
+      400: 'Bad request (400)',
+      401: 'Unauthorized (401)',
+      403: 'Forbidden (403)',
+      404: 'Not found (404)',
+      422: 'Unprocessable entity (422)',
+      429: 'Too many requests (429)',
+      500: 'Server error (500)',
+      502: 'Bad gateway (502)',
+      503: 'Service unavailable (503)',
+    };
+    return map[status] || `Error (${status})`;
+  }
+
   private handleError(error: unknown): ApiFailure {
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError<{ status_message?: string }>;
@@ -65,9 +81,12 @@ class ApiClient {
         };
       }
 
+      const fallback = this.statusMessage(status) || axiosError.message || 'Request failed';
+      const message = serverMessage ? `${serverMessage} (${status})` : fallback;
+
       return {
         success: false,
-        message: serverMessage || axiosError.message || 'Request failed',
+        message,
         status,
       };
     }

@@ -201,10 +201,21 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={styles.searchButton}
+                style={[
+                  styles.searchButton,
+                  search.trim().length > 0 && styles.searchButtonActive,
+                ]}
                 onPress={handleSearchPress}
+                disabled={search.trim().length === 0}
               >
-                <Text style={styles.searchButtonText}>Search</Text>
+                <Text
+                  style={[
+                    styles.searchButtonText,
+                    search.trim().length > 0 && styles.searchButtonTextActive,
+                  ]}
+                >
+                  Search
+                </Text>
               </TouchableOpacity>
               {loading && (
                 <Text style={{ marginBottom: 8, color: '#666666' }}>
@@ -307,10 +318,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 18,
   },
+  searchButtonActive: {
+    backgroundColor: '#1BA3C6',
+  },
   searchButtonText: {
     fontSize: 15,
     color: '#7f7f7f',
     fontWeight: '700',
+  },
+  searchButtonTextActive: {
+    color: '#ffffff',
   },
 
   movieCard: {
