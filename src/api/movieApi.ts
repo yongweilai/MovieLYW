@@ -80,18 +80,18 @@ export type AccountDetailsResponse = {
 
 export const movieApi = {
   // Now Playing movies
-  movieNowPlayingList(): Promise<ApiResponse<MovieListResponse>> {
-    return apiClient.get<MovieListResponse>('/movie/now_playing');
+  movieNowPlayingList(page = 1): Promise<ApiResponse<MovieListResponse>> {
+    return apiClient.get<MovieListResponse>('/movie/now_playing', { page });
   },
 
   // Popular movies
-  moviePopularList(): Promise<ApiResponse<MovieListResponse>> {
-    return apiClient.get<MovieListResponse>('/movie/popular');
+  moviePopularList(page = 1): Promise<ApiResponse<MovieListResponse>> {
+    return apiClient.get<MovieListResponse>('/movie/popular', { page });
   },
 
   // Upcoming movies
-  movieUpcomingList(): Promise<ApiResponse<MovieListResponse>> {
-    return apiClient.get<MovieListResponse>('/movie/upcoming');
+  movieUpcomingList(page = 1): Promise<ApiResponse<MovieListResponse>> {
+    return apiClient.get<MovieListResponse>('/movie/upcoming', { page });
   },
 
   // Movie detail

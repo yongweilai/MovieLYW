@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  FlatList,
   Image,
   StatusBar,
 } from 'react-native';
@@ -13,8 +12,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList, MovieItem } from '../navigator/types';
 import CategoryDropdown from '../components/CategoryDropdown';
+import AppFlashList from '../components/AppFlashList';
 import { movieApi, MovieListItem } from '../api/movieApi';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { moviesActions } from '../store';
 import AppLogoTheMovieDb from '../assets/app_logo_the_movie_db.svg';
+
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
 const categoryOptions = [
@@ -76,16 +79,15 @@ const MovieCard = ({
 };
 
 const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
-  const [search, setSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('now_playing');
-  const [selectedSort, setSelectedSort] = useState('sort_by');
-  const [rawMovies, setRawMovies] = useState<MovieListItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const dispatch = useAppDispatch();
+  const movies = useAppSelector(state => state.movies);
+  const { ui, data, status } = movies;
+  const { search, appliedSearch, selectedCategory, selectedSort } = ui;
+  const { rawMovies, page, totalPages } = data;
+  const { loading, loadingMore, error } = status;
 
   const handleSearchPress = () => {
-    setAppliedSearch(search.trim());
+    dispatch(moviesActions.setAppliedSearch(search.trim()));
   };
 
   const mapToMovieItem = (item: MovieListItem): MovieItem => {
@@ -135,47 +137,82 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('MovieDetail', { movieId: Number(movie.id) });
   };
 
-  const fetchMoviesByCategory = async (category: string) => {
-    setLoading(true);
-    setError(null);
+  const fetchMoviesByCategory = async (category: string, pageNum = 1) => {
+    if (pageNum === 1) {
+      dispatch(moviesActions.setLoading(true));
+      dispatch(moviesActions.setError(null));
+    }
 
     try {
       let result;
       if (category === 'popular') {
-        result = await movieApi.moviePopularList();
+        result = await movieApi.moviePopularList(pageNum);
       } else if (category === 'upcoming') {
-        result = await movieApi.movieUpcomingList();
+        result = await movieApi.movieUpcomingList(pageNum);
       } else {
-        result = await movieApi.movieNowPlayingList();
+        result = await movieApi.movieNowPlayingList(pageNum);
       }
 
       if (result.success) {
-        setRawMovies(result.data.results ?? []);
+        const newResults = result.data.results ?? [];
+        if (pageNum === 1) {
+          dispatch(moviesActions.setMovies(newResults));
+        } else {
+          dispatch(moviesActions.appendMovies(newResults));
+        }
+        dispatch(moviesActions.setPage(pageNum));
+        dispatch(moviesActions.setTotalPages(result.data.total_pages ?? 1));
       } else {
-        setError(result.message || 'Failed to load movies');
-        setRawMovies([]);
+        if (pageNum === 1) {
+          dispatch(moviesActions.setError(result.message || 'Failed to load movies'));
+          dispatch(moviesActions.setMovies([]));
+        }
       }
     } catch (e) {
-      setError('Failed to load movies');
-      setRawMovies([]);
+      if (pageNum === 1) {
+        dispatch(moviesActions.setError('Failed to load movies'));
+        dispatch(moviesActions.setMovies([]));
+      }
     } finally {
-      setLoading(false);
+      if (pageNum === 1) {
+        dispatch(moviesActions.setLoading(false));
+      }
+    }
+  };
+
+  const loadMoreMovies = async () => {
+    if (loading || loadingMore || page >= totalPages) return;
+    dispatch(moviesActions.setLoadingMore(true));
+    try {
+      await fetchMoviesByCategory(selectedCategory, page + 1);
+    } finally {
+      dispatch(moviesActions.setLoadingMore(false));
     }
   };
 
   useEffect(() => {
-    fetchMoviesByCategory(selectedCategory);
+    dispatch(moviesActions.resetPagination());
+    fetchMoviesByCategory(selectedCategory, 1);
   }, [selectedCategory]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <View style={styles.container}>
-        <FlatList
+        <AppFlashList
           data={processedMovies}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          onEndReached={loadMoreMovies}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.loadingMoreWrap}>
+                <Text style={styles.loadingMoreText}>Loading more...</Text>
+              </View>
+            ) : null
+          }
           ListHeaderComponent={
             <>
               <Logo />
@@ -183,17 +220,17 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
               <CategoryDropdown
                 options={categoryOptions}
                 value={selectedCategory}
-                onChange={setSelectedCategory}
+                onChange={value => dispatch(moviesActions.setCategory(value))}
               />
               <CategoryDropdown
                 options={sortOptions}
                 value={selectedSort}
-                onChange={setSelectedSort}
+                onChange={value => dispatch(moviesActions.setSort(value))}
               />
 
               <TextInput
                 value={search}
-                onChangeText={setSearch}
+                onChangeText={text => dispatch(moviesActions.setSearch(text))}
                 placeholder="Search..."
                 placeholderTextColor="#9b9b9b"
                 style={styles.searchInput}
@@ -201,10 +238,21 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={styles.searchButton}
+                style={[
+                  styles.searchButton,
+                  search.trim().length > 0 && styles.searchButtonActive,
+                ]}
                 onPress={handleSearchPress}
+                disabled={search.trim().length === 0}
               >
-                <Text style={styles.searchButtonText}>Search</Text>
+                <Text
+                  style={[
+                    styles.searchButtonText,
+                    search.trim().length > 0 && styles.searchButtonTextActive,
+                  ]}
+                >
+                  Search
+                </Text>
               </TouchableOpacity>
               {loading && (
                 <Text style={{ marginBottom: 8, color: '#666666' }}>
@@ -245,6 +293,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 90,
+  },
+  loadingMoreWrap: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: '#666666',
   },
 
   logoContainer: {
@@ -307,10 +363,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 18,
   },
+  searchButtonActive: {
+    backgroundColor: '#1BA3C6',
+  },
   searchButtonText: {
     fontSize: 15,
     color: '#7f7f7f',
     fontWeight: '700',
+  },
+  searchButtonTextActive: {
+    color: '#ffffff',
   },
 
   movieCard: {

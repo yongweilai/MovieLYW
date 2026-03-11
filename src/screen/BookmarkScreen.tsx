@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Image,
   StatusBar,
 } from 'react-native';
@@ -13,8 +12,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BookmarkStackParamList, MovieItem } from '../navigator/types';
 import { watchlistStorage, WatchlistItem } from '../storage/watchlistStorage';
-import { movieApi, AccountDetailsResponse } from '../api/movieApi';
+import { movieApi } from '../api/movieApi';
 import { API_CONFIG } from '../api/config';
+import AppFlashList from '../components/AppFlashList';
+import CategoryDropdown from '../components/CategoryDropdown';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { bookmarkActions } from '../store';
+import AppLogoTheMovieDb from '../assets/app_logo_the_movie_db.svg';
+
+const sortOrderOptions = [
+  { label: 'Alphabetical order', value: 'alphabetical' },
+  { label: 'Rating', value: 'rating' },
+  { label: 'Release date', value: 'release_date' },
+];
 
 type BookmarkMovie = MovieItem & {
   rating: number;
@@ -22,23 +32,12 @@ type BookmarkMovie = MovieItem & {
 };
 type Props = NativeStackScreenProps<BookmarkStackParamList, 'BookmarkMain'>;
 
-type FilterType = 'rating' | 'date';
-type OrderType = 'asc' | 'desc';
-
 const gravatarBaseUrl = 'https://www.gravatar.com/avatar';
 
 const Logo = () => {
   return (
     <View style={styles.logoContainer}>
-      <Text style={styles.logoText}>THE</Text>
-      <View style={styles.logoRow}>
-        <Text style={styles.logoText}>MOVIE</Text>
-        <View style={styles.logoPillSmall} />
-      </View>
-      <View style={styles.logoRow}>
-        <Text style={styles.logoText}>DB</Text>
-        <View style={styles.logoPillLarge} />
-      </View>
+      <AppLogoTheMovieDb width={100} height={100} />
     </View>
   );
 };
@@ -86,10 +85,10 @@ const BookmarkCard = ({
   };
 
 const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
-  const [movies, setMovies] = useState<WatchlistItem[]>([]);
-  const [filterBy, setFilterBy] = useState<FilterType>('rating');
-  const [orderBy, setOrderBy] = useState<OrderType>('asc');
-  const [account, setAccount] = useState<AccountDetailsResponse | null>(null);
+  const dispatch = useAppDispatch();
+  const bookmark = useAppSelector(state => state.bookmark);
+  const { items: movies, account, filter } = bookmark;
+  const { sortOrder } = filter;
 
   useEffect(() => {
     if (!API_CONFIG.ACCOUNT_ID) return;
@@ -97,17 +96,17 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
     movieApi.getAccountDetails(API_CONFIG.ACCOUNT_ID).then((result) => {
       if (!isMounted) return;
       if (result.success && 'data' in result) {
-        setAccount(result.data);
+        dispatch(bookmarkActions.setAccount(result.data));
       }
     });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [dispatch]);
 
   const loadWatchlist = useCallback(() => {
-    setMovies(watchlistStorage.getAll());
-  }, []);
+    dispatch(bookmarkActions.setItems(watchlistStorage.getAll()));
+  }, [dispatch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -120,34 +119,31 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
       movieId: Number(movie.id),
     });
   };
+
   const sortedMovies = useMemo(() => {
     const data = [...movies];
-
     data.sort((a, b) => {
-      let result = 0;
-
-      if (filterBy === 'rating') {
-        result = a.rating - b.rating;
-      } else {
-        result =
-          new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
+      switch (sortOrder) {
+        case 'alphabetical':
+          return (a.title || '').localeCompare(b.title || '');
+        case 'rating':
+          return b.rating - a.rating; // higher first
+        case 'release_date': {
+          const aTime = new Date(a.releaseDate).getTime();
+          const bTime = new Date(b.releaseDate).getTime();
+          return bTime - aTime; // newest first
+        }
+        default:
+          return 0;
       }
-
-      return orderBy === 'asc' ? result : -result;
     });
-
     return data;
-  }, [movies, filterBy, orderBy]);
+  }, [movies, sortOrder]);
 
   const handleRemove = (id: string) => {
     watchlistStorage.remove(id);
-    setMovies(prev => prev.filter(item => item.id !== id));
+    dispatch(bookmarkActions.removeItem(id));
   };
-
-  const toggleOrder = () => {
-    setOrderBy(prev => (prev === 'asc' ? 'desc' : 'asc'));
-  };
-  
 
   const renderHeader = () => {
     return (
@@ -196,36 +192,15 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>My Watchlist</Text>
 
-          <View style={styles.filterRow}>
-            <View style={styles.filterGroup}>
-              <Text style={styles.filterLabel}>Filter by:</Text>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={styles.filterValueWrap}
-                onPress={() =>
-                  setFilterBy(prev => (prev === 'rating' ? 'date' : 'rating'))
-                }
-              >
-                <Text style={styles.filterValue}>
-                  {filterBy === 'rating' ? 'Rating' : 'Date Added'}
-                </Text>
-                <Text style={styles.filterArrow}>⌄</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.orderGroup}>
-              <Text style={styles.filterLabel}>Order:</Text>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={styles.orderButton}
-                onPress={toggleOrder}
-              >
-                <Text style={styles.orderIcon}>
-                  {orderBy === 'asc' ? '↑' : '↓'}
-                </Text>
-              </TouchableOpacity>
+          <View style={styles.filterByRow}>
+            <Text style={styles.filterLabel}>Filter by</Text>
+            <View style={styles.filterDropdownWrap}>
+            <CategoryDropdown
+              options={sortOrderOptions}
+              value={sortOrder}
+              onChange={value => dispatch(bookmarkActions.setSortOrder(value as 'alphabetical' | 'rating' | 'release_date'))}
+              placeholder="Select sort order"
+            />
             </View>
           </View>
         </View>
@@ -238,7 +213,7 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       <View style={styles.container}>
-        <FlatList
+        <AppFlashList
           data={sortedMovies}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
@@ -395,21 +370,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
-  filterRow: {
+  filterByRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-
-  filterGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  orderGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 8,
+    gap: 12,
   },
 
   filterLabel: {
@@ -418,33 +383,8 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
 
-  filterValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  filterValue: {
-    fontSize: 14,
-    color: '#1eb6dd',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-
-  filterArrow: {
-    fontSize: 16,
-    color: '#1eb6dd',
-    marginLeft: 5,
-  },
-
-  orderButton: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-
-  orderIcon: {
-    fontSize: 18,
-    color: '#111111',
-    fontWeight: '700',
+  filterDropdownWrap: {
+    flex: 1,
   },
 
   movieCard: {

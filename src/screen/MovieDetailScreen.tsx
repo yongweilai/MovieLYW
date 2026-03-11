@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,8 +19,89 @@ import {
   RecommendationItem,
 } from '../api/movieApi';
 import { watchlistStorage, WatchlistItem } from '../storage/watchlistStorage';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { movieDetailActions } from '../store';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'MovieDetail'>;
+
+type DetailUIState = {
+  loading: boolean;
+  error: string | null;
+  isBookmarked: boolean;
+};
+
+const initialUIState: DetailUIState = {
+  loading: true,
+  error: null,
+  isBookmarked: false,
+};
+
+const FONT = {
+  regular: 'SourceSans3-Regular',
+  semiBold: 'SourceSans3-SemiBold',
+  bold: 'SourceSans3-Bold',
+  italic: 'SourceSans3-Italic',
+};
+
+// Visual ring size is 70, but SVG needs extra canvas for thick strokes (otherwise it gets clipped).
+const CIRCLE_SIZE = 70;
+const STROKE_WIDTH = 4;
+const OUTER_RIM_EXTRA = 6; // extra thickness added on top of STROKE_WIDTH
+const SVG_PADDING = (STROKE_WIDTH + OUTER_RIM_EXTRA) / 2;
+const SVG_SIZE = CIRCLE_SIZE + SVG_PADDING * 2;
+const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
+const CENTER = SVG_SIZE / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+function UserScoreRing({ score }: { score: number }) {
+  const progress = Math.min(100, Math.max(0, score)) / 100;
+  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  return (
+    <View style={styles.ringWrapper}>
+      <Svg width={SVG_SIZE} height={SVG_SIZE} style={styles.ringSvg}>
+        {/* Outer dark rim */}
+        <Circle
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          stroke="#071b27"
+          strokeWidth={STROKE_WIDTH + OUTER_RIM_EXTRA}
+          fill="transparent"
+        />
+        {/* Inner background */}
+        <Circle cx={CENTER} cy={CENTER} r={RADIUS - STROKE_WIDTH} fill="#071b27" />
+        {/* Grey track */}
+        <Circle
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          stroke="#6d7781"
+          strokeWidth={STROKE_WIDTH}
+          fill="transparent"
+        />
+        {/* Green progress arc - starts from top (-90°) */}
+        <Circle
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          stroke="#00e676"
+          strokeWidth={STROKE_WIDTH}
+          fill="transparent"
+          strokeDasharray={CIRCUMFERENCE}
+          strokeDashoffset={strokeDashoffset}
+          transform={`rotate(-90 ${CENTER} ${CENTER})`}
+          strokeLinecap="round"
+        />
+      </Svg>
+      <View style={styles.ringScoreOverlay}>
+        <View style={styles.ringScoreRow}>
+          <Text style={styles.ringScoreAmount}>{score}</Text>
+          <Text style={styles.ringScorePercent}>%</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
 const posterBaseUrl = 'https://image.tmdb.org/t/p/w500';
 const profileBaseUrl = 'https://image.tmdb.org/t/p/w185';
@@ -82,21 +164,17 @@ function movieToWatchlistItem(movie: Movie): WatchlistItem {
 
 export default function MovieDetailScreen({ route, navigation }: Props) {
   const { movieId } = route.params;
-  const [movie, setMovie] = useState<Movie | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
-  const [cast, setCast] = useState<CastMember[]>([]);
-  const [recommendations, setRecommendations] = useState<RecommendationItem[]>(
-    []
-  );
+  const dispatch = useAppDispatch();
+  const { movie, cast, recommendations } = useAppSelector(state => state.movieDetail);
+  const [ui, setUI] = useState<DetailUIState>(initialUIState);
+  const { loading, error, isBookmarked } = ui;
 
   useEffect(() => {
     let isMounted = true;
+    dispatch(movieDetailActions.clearDetail());
+    setUI(prev => ({ ...prev, loading: true, error: null }));
 
     const fetchDetail = async () => {
-      setLoading(true);
-      setError(null);
       try {
         const [detailResult, creditsResult, recsResult] = await Promise.all([
           movieApi.getMovieDetail(movieId),
@@ -108,25 +186,34 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
 
         if (detailResult.success) {
           const mapped = mapDetailToMovie(detailResult.data);
-          setMovie(mapped);
-          setIsBookmarked(watchlistStorage.isInWatchlist(mapped.id));
+          dispatch(
+            movieDetailActions.setDetail({
+              movie: mapped,
+              cast: creditsResult.success && creditsResult.data.cast
+                ? creditsResult.data.cast
+                : [],
+              recommendations:
+                recsResult.success && recsResult.data.results
+                  ? recsResult.data.results
+                  : [],
+            })
+          );
+          setUI(prev => ({
+            ...prev,
+            loading: false,
+            error: null,
+            isBookmarked: watchlistStorage.isInWatchlist(mapped.id),
+          }));
         } else {
-          setError(detailResult.message || 'Failed to load movie detail');
-        }
-
-        if (creditsResult.success && creditsResult.data.cast) {
-          setCast(creditsResult.data.cast);
-        }
-        if (recsResult.success && recsResult.data.results) {
-          setRecommendations(recsResult.data.results);
+          setUI(prev => ({
+            ...prev,
+            loading: false,
+            error: detailResult.message ?? 'Failed to load movie detail',
+          }));
         }
       } catch (e) {
         if (!isMounted) return;
-        setError('Failed to load movie detail');
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setUI(prev => ({ ...prev, loading: false, error: 'Failed to load movie detail' }));
       }
     };
 
@@ -135,13 +222,13 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
     return () => {
       isMounted = false;
     };
-  }, [movieId]);
+  }, [movieId, dispatch]);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#ffffff' }}>Loading...</Text>
+          <Text style={[styles.loadingErrorText, { color: '#ffffff' }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
@@ -158,16 +245,11 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
             paddingHorizontal: 24,
           }}
         >
-          <Text style={{ color: '#ffffff', marginBottom: 12 }}>
+          <Text style={[styles.loadingErrorText, { color: '#ffffff', marginBottom: 12 }]}>
             {error || 'Movie not found'}
           </Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text
-              style={{
-                color: '#ffffff',
-                textDecorationLine: 'underline',
-              }}
-            >
+            <Text style={[styles.loadingErrorText, styles.goBackText]}>
               Go Back
             </Text>
           </TouchableOpacity>
@@ -181,13 +263,17 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
       <ScrollView>
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.headerBack}
+          >
             <Ionicons name="chevron-back" size={28} color="#fff" />
           </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>
-            {movie.title} ({movie.year})
-          </Text>
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle}>
+              {movie.title} ({movie.year})
+            </Text>
+          </View>
         </View>
 
         {/* TOP INFO */}
@@ -202,20 +288,23 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
             </Text>
 
             <Text style={styles.text}>{movie.genres}</Text>
-            <Text style={styles.text}>Status: {movie.status}</Text>
             <Text style={styles.text}>
-              Original Language: {movie.originalLanguage}
+              <Text style={styles.topLabel}>Status: </Text>
+              {movie.status}
+            </Text>
+            <Text style={styles.text}>
+              <Text style={styles.topLabel}>Original Language: </Text>
+              {movie.originalLanguage}
             </Text>
           </View>
         </View>
 
         {/* SCORE */}
         <View style={styles.scoreSection}>
-          <View style={styles.circle}>
-            <Text style={styles.score}>{movie.userScore}%</Text>
+          <View style={styles.scoreLeft}>
+            <UserScoreRing score={movie.userScore} />
+            <Text style={styles.scoreLabel}>User Score</Text>
           </View>
-          <Text style={styles.scoreLabel}>User Score</Text>
-
           <View style={styles.crew}>
             {movie.director ? (
               <>
@@ -246,10 +335,10 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
             if (!movie) return;
             if (isBookmarked) {
               watchlistStorage.remove(movie.id);
-              setIsBookmarked(false);
+              setUI(prev => ({ ...prev, isBookmarked: false }));
             } else {
               watchlistStorage.add(movieToWatchlistItem(movie));
-              setIsBookmarked(true);
+              setUI(prev => ({ ...prev, isBookmarked: true }));
             }
           }}
         >
@@ -267,65 +356,73 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
         <View style={styles.whiteSection}>
           {/* Top Billed Cast */}
           <Text style={styles.sectionTitle}>Top Billed Cast</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.castList}
-          >
-            {cast.map((member) => (
-              <View key={member.id} style={styles.castCard}>
-                <Image
-                  source={{
-                    uri: member.profile_path
-                      ? `${profileBaseUrl}${member.profile_path}`
-                      : undefined,
-                  }}
-                  style={styles.castPhotoRect}
-                />
-                <Text style={styles.castName} numberOfLines={2}>
-                  {member.name}
-                </Text>
-                <Text style={styles.castCharacter} numberOfLines={1}>
-                  {member.character}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
+          {cast.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.castList}
+            >
+              {cast.map((member) => (
+                <View key={member.id} style={styles.castCard}>
+                  <Image
+                    source={{
+                      uri: member.profile_path
+                        ? `${profileBaseUrl}${member.profile_path}`
+                        : undefined,
+                    }}
+                    style={styles.castPhotoRect}
+                  />
+                  <Text style={styles.castName} numberOfLines={2}>
+                    {member.name}
+                  </Text>
+                  <Text style={styles.castCharacter} numberOfLines={1}>
+                    {member.character}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.emptySectionText}>No top billed cast</Text>
+          )}
 
           {/* Recommendation */}
           <View style={styles.recSection}>
             <Text style={styles.sectionTitle}>Recommendation</Text>
-            <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recList}
-          >
-            {recommendations.map((rec) => (
-              <TouchableOpacity
-                key={rec.id}
-                style={styles.recCard}
-                onPress={() =>
-                  navigation.push('MovieDetail', { movieId: rec.id })
-                }
-                activeOpacity={0.8}
+            {recommendations.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recList}
               >
-                <Image
-                  source={{
-                    uri: rec.poster_path
-                      ? `${posterBaseUrl}${rec.poster_path}`
-                      : undefined,
-                  }}
-                  style={styles.recPosterRect}
-                />
-                <Text style={styles.recTitle} numberOfLines={2}>
-                  {rec.title}
-                </Text>
-                <Text style={styles.recScore}>
-                  {Math.round(rec.vote_average * 10)}%
-                </Text>
-              </TouchableOpacity>
-            ))}
-            </ScrollView>
+                {recommendations.map((rec) => (
+                  <TouchableOpacity
+                    key={rec.id}
+                    style={styles.recCard}
+                    onPress={() =>
+                      navigation.push('MovieDetail', { movieId: rec.id })
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={{
+                        uri: rec.poster_path
+                          ? `${posterBaseUrl}${rec.poster_path}`
+                          : undefined,
+                      }}
+                      style={styles.recPosterRect}
+                    />
+                    <Text style={styles.recTitle} numberOfLines={2}>
+                      {rec.title}
+                    </Text>
+                    <Text style={styles.recScore}>
+                      {Math.round(rec.vote_average * 10)}%
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.emptySectionText}>No Recommendation</Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -334,7 +431,13 @@ export default function MovieDetailScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-
+  loadingErrorText: {
+    fontFamily: FONT.regular,
+  },
+  goBackText: {
+    color: '#ffffff',
+    textDecorationLine: 'underline',
+  },
   container: {
     flex: 1,
     backgroundColor: '#1BA3C6',
@@ -345,12 +448,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
   },
-
+  headerBack: {
+    position: 'absolute',
+    left: 15,
+    zIndex: 1,
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     color: '#fff',
     fontSize: 20,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    fontFamily: FONT.semiBold,
+    textAlign: 'center',
   },
 
   topSection: {
@@ -376,73 +488,93 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     alignSelf: 'flex-start',
     marginBottom: 8,
+    fontFamily: FONT.regular,
   },
-
   text: {
     color: '#fff',
     marginBottom: 4,
+    fontFamily: FONT.regular,
+  },
+  topLabel: {
+    fontFamily: FONT.semiBold,
   },
 
   scoreSection: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
   },
-
-  circle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 4,
-    borderColor: '#00e676',
+  scoreLeft: {
+    alignItems: 'center',
+  },
+  ringWrapper: {
+    width: SVG_SIZE,
+    height: SVG_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  score: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  ringSvg: {
+    position: 'absolute',
   },
-
+  ringScoreOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ringScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  ringScoreAmount: {
+    color: '#fff',
+    fontSize: 20,
+    fontFamily: FONT.bold,
+  },
+  ringScorePercent: {
+    color: '#fff',
+    fontSize: 6,
+    fontFamily: FONT.bold,
+    marginTop: -2,
+    marginLeft: 2,
+  },
   scoreLabel: {
     color: '#fff',
-    marginLeft: 10,
+    fontFamily: FONT.bold,
+    marginTop: 4,
   },
 
   crew: {
-    marginLeft: 40,
+    marginLeft: 32,
+    flex: 1,
   },
-
   crewName: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: FONT.bold,
   },
-
   crewRole: {
     color: '#ddd',
     marginBottom: 8,
+    fontFamily: FONT.regular,
   },
-
   tagline: {
     color: '#fff',
-    fontStyle: 'italic',
+    fontFamily: FONT.italic,
+    fontSize: 20,
     padding: 20,
   },
-
   overviewTitle: {
     color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontFamily: FONT.bold,
     paddingHorizontal: 20,
   },
-
   overview: {
     color: '#fff',
+    fontFamily: FONT.regular,
+    fontSize: 16,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
-
   watchlistButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -452,11 +584,14 @@ const styles = StyleSheet.create({
     padding: 12,
     justifyContent: 'center',
     borderRadius: 6,
+    width: 192,
+    alignSelf: 'flex-start',
   },
 
   watchlistText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: FONT.semiBold,
+    fontSize: 14,
   },
 
   whiteSection: {
@@ -467,10 +602,18 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: FONT.bold,
     color: '#000',
     paddingHorizontal: 20,
     marginBottom: 12,
+  },
+  emptySectionText: {
+    fontFamily: FONT.regular,
+    fontSize: 15,
+    color: '#666',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    textAlign: 'center',
   },
 
   castList: {
@@ -500,14 +643,14 @@ const styles = StyleSheet.create({
 
   castName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONT.semiBold,
     color: '#000',
     marginTop: 8,
     textAlign: 'center',
   },
-
   castCharacter: {
     fontSize: 12,
+    fontFamily: FONT.regular,
     color: '#666',
     marginTop: 2,
     textAlign: 'center',
@@ -543,13 +686,13 @@ const styles = StyleSheet.create({
 
   recTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: FONT.semiBold,
     color: '#000',
     marginTop: 6,
   },
-
   recScore: {
     fontSize: 12,
+    fontFamily: FONT.regular,
     color: '#666',
     marginTop: 2,
   },
