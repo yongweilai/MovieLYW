@@ -3,6 +3,55 @@ PODS:
   - hermes-engine (250829098.0.9):
     - hermes-engine/Pre-built (= 250829098.0.9)
   - hermes-engine/Pre-built (250829098.0.9)
+  - MMKVCore (2.3.0)
+  - NitroMmkv (4.2.0):
+    - hermes-engine
+    - MMKVCore (= 2.3.0)
+    - NitroModules
+    - RCTRequired
+    - RCTTypeSafety
+    - React-callinvoker
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - NitroModules (0.35.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-callinvoker
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - RCTDeprecation (0.84.1)
   - RCTRequired (0.84.1)
   - RCTSwiftUI (0.84.1)
@@ -1469,6 +1518,9 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-vector-icons-evil-icons (12.4.2)
+  - react-native-vector-icons-fontawesome-free-solid (0.1.2)
+  - react-native-vector-icons-ionicons (12.4.2)
   - React-NativeModulesApple (0.84.1):
     - hermes-engine
     - React-callinvoker
@@ -1854,11 +1906,127 @@ PODS:
     - React-utils (= 0.84.1)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.84.1)
+  - RNScreens (4.24.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-RCTImage
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNScreens/common (= 4.24.0)
+    - Yoga
+  - RNScreens/common (4.24.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-RCTImage
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - RNSVG (15.15.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNSVG/common (= 15.15.3)
+    - Yoga
+  - RNSVG/common (15.15.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - RNVectorIcons (10.3.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - Yoga (0.0.0)
 
 DEPENDENCIES:
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
+  - NitroMmkv (from `../node_modules/react-native-mmkv`)
+  - NitroModules (from `../node_modules/react-native-nitro-modules`)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../node_modules/react-native/Libraries/Required`)
   - RCTSwiftUI (from `../node_modules/react-native/ReactApple/RCTSwiftUI`)
@@ -1897,6 +2065,9 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
+  - "react-native-vector-icons-evil-icons (from `../node_modules/@react-native-vector-icons/evil-icons`)"
+  - "react-native-vector-icons-fontawesome-free-solid (from `../node_modules/@react-native-vector-icons/fontawesome-free-solid`)"
+  - "react-native-vector-icons-ionicons (from `../node_modules/@react-native-vector-icons/ionicons`)"
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-networking (from `../node_modules/react-native/ReactCommon/react/networking`)
   - React-oscompat (from `../node_modules/react-native/ReactCommon/oscompat`)
@@ -1931,7 +2102,14 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
+  - RNScreens (from `../node_modules/react-native-screens`)
+  - RNSVG (from `../node_modules/react-native-svg`)
+  - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
+
+SPEC REPOS:
+  trunk:
+    - MMKVCore
 
 EXTERNAL SOURCES:
   FBLazyVector:
@@ -1939,6 +2117,10 @@ EXTERNAL SOURCES:
   hermes-engine:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-v250829098.0.9
+  NitroMmkv:
+    :path: "../node_modules/react-native-mmkv"
+  NitroModules:
+    :path: "../node_modules/react-native-nitro-modules"
   RCTDeprecation:
     :path: "../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation"
   RCTRequired:
@@ -2013,6 +2195,12 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
+  react-native-vector-icons-evil-icons:
+    :path: "../node_modules/@react-native-vector-icons/evil-icons"
+  react-native-vector-icons-fontawesome-free-solid:
+    :path: "../node_modules/@react-native-vector-icons/fontawesome-free-solid"
+  react-native-vector-icons-ionicons:
+    :path: "../node_modules/@react-native-vector-icons/ionicons"
   React-NativeModulesApple:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios"
   React-networking:
@@ -2081,12 +2269,21 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   ReactNativeDependencies:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
+  RNScreens:
+    :path: "../node_modules/react-native-screens"
+  RNSVG:
+    :path: "../node_modules/react-native-svg"
+  RNVectorIcons:
+    :path: "../node_modules/react-native-vector-icons"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
   FBLazyVector: e97c19a5a442429d1988f182a1940fb08df514da
   hermes-engine: 0e2eec96345e5fe21a0ea870ca3b73774a77f620
+  MMKVCore: d078dce7d6586a888b2c2ef5343b6242678e3ee8
+  NitroMmkv: 38dfb2983c83e9bbbb64423ff48fbeaaa097cc38
+  NitroModules: ff0d24be334de628166b9ac63661c998c732de7d
   RCTDeprecation: af44b104091a34482596cd9bd7e8d90c4e9b4bd7
   RCTRequired: bb77b070f75f53398ce43c0aaaa58337cebe2bf6
   RCTSwiftUI: afc0a0a635860da1040a0b894bfd529da06d7810
@@ -2124,6 +2321,9 @@ SPEC CHECKSUMS:
   React-Mapbuffer: f4ee8c62e0ef8359d139124f35a471518a172cd3
   React-microtasksnativemodule: d1956f0eec54c619b63a379520fb4c618a55ccb9
   react-native-safe-area-context: ae7587b95fb580d1800c5b0b2a7bd48c2868e67a
+  react-native-vector-icons-evil-icons: 7d928cafd523012d6576a1cbb933338ba074b51e
+  react-native-vector-icons-fontawesome-free-solid: d3ff44c0a426f8f8a491b893543f3fa34c343aa8
+  react-native-vector-icons-ionicons: 7cc4388958a60560aa6f5e257ad8197d555700ff
   React-NativeModulesApple: 5ba0903927f6b8d335a091700e9fda143980f819
   React-networking: 3a4b7f9ed2b2d1c0441beacb79674323a24bcca6
   React-oscompat: ff26abf0ae3e3fdbe47b44224571e3fc7226a573
@@ -2158,6 +2358,9 @@ SPEC CHECKSUMS:
   ReactCodegen: 797de5178718324c6eba3327b07f9a423fbd5787
   ReactCommon: 07572bf9e687c8a52fbe4a3641e9e3a1a477c78e
   ReactNativeDependencies: b01e218b8af499b5f1184ddc4fc56d86f28fe15a
+  RNScreens: 6cb648bdad8fe9bee9259fe144df95b6d1d5b707
+  RNSVG: 507bf2685de6b3d49449efd4aae7e7471bb9c433
+  RNVectorIcons: 4351544f100d4f12cac156a7c13399e60bab3e26
   Yoga: c0b3f2c7e8d3e327e450223a2414ca3fa296b9a2
 
 PODFILE CHECKSUM: 691507f5891bd48ba4178eebeb6661627046b083
