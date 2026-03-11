@@ -1,3 +1,17 @@
+Ruby version: 3.3.0
+Node Version: 24.14.0
+Gem version: 3.5.3
+Cocoapods Version: 1.15.2
+
+Libraries used:
+1. Flash List: https://github.com/Shopify/flash-list
+2. React Native MMKV: https://github.com/mrousavy/react-native-mmkv
+3. Redux-js: https://redux.js.org/
+4. @react-native-vector-icons: https://github.com/oblador/react-native-vector-icons
+5. React Native SVG: https://www.npmjs.com/package/react-native-svg
+6. React Navigation: https://reactnavigation.org/
+7. react-native-safe-area-context: https://www.npmjs.com/package/react-native-safe-area-context
+   
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started
