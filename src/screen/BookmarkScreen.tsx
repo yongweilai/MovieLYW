@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BookmarkStackParamList, MovieItem } from '../navigator/types';
 import { watchlistStorage, WatchlistItem } from '../storage/watchlistStorage';
-import { movieApi, AccountDetailsResponse } from '../api/movieApi';
+import { movieApi } from '../api/movieApi';
 import { API_CONFIG } from '../api/config';
 import AppFlashList from '../components/AppFlashList';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { bookmarkActions } from '../store';
 import AppLogoTheMovieDb from '../assets/app_logo_the_movie_db.svg';
 
 type BookmarkMovie = MovieItem & {
@@ -22,9 +24,6 @@ type BookmarkMovie = MovieItem & {
   addedAt: string;
 };
 type Props = NativeStackScreenProps<BookmarkStackParamList, 'BookmarkMain'>;
-
-type FilterType = 'rating' | 'date';
-type OrderType = 'asc' | 'desc';
 
 const gravatarBaseUrl = 'https://www.gravatar.com/avatar';
 
@@ -79,10 +78,10 @@ const BookmarkCard = ({
   };
 
 const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
-  const [movies, setMovies] = useState<WatchlistItem[]>([]);
-  const [filterBy, setFilterBy] = useState<FilterType>('rating');
-  const [orderBy, setOrderBy] = useState<OrderType>('asc');
-  const [account, setAccount] = useState<AccountDetailsResponse | null>(null);
+  const dispatch = useAppDispatch();
+  const bookmark = useAppSelector(state => state.bookmark);
+  const { items: movies, account, filter } = bookmark;
+  const { filterBy, orderBy } = filter;
 
   useEffect(() => {
     if (!API_CONFIG.ACCOUNT_ID) return;
@@ -90,17 +89,17 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
     movieApi.getAccountDetails(API_CONFIG.ACCOUNT_ID).then((result) => {
       if (!isMounted) return;
       if (result.success && 'data' in result) {
-        setAccount(result.data);
+        dispatch(bookmarkActions.setAccount(result.data));
       }
     });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [dispatch]);
 
   const loadWatchlist = useCallback(() => {
-    setMovies(watchlistStorage.getAll());
-  }, []);
+    dispatch(bookmarkActions.setItems(watchlistStorage.getAll()));
+  }, [dispatch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -113,32 +112,28 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
       movieId: Number(movie.id),
     });
   };
+
   const sortedMovies = useMemo(() => {
     const data = [...movies];
-
     data.sort((a, b) => {
       let result = 0;
-
       if (filterBy === 'rating') {
         result = a.rating - b.rating;
       } else {
-        result =
-          new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
+        result = new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
       }
-
       return orderBy === 'asc' ? result : -result;
     });
-
     return data;
   }, [movies, filterBy, orderBy]);
 
   const handleRemove = (id: string) => {
     watchlistStorage.remove(id);
-    setMovies(prev => prev.filter(item => item.id !== id));
+    dispatch(bookmarkActions.removeItem(id));
   };
 
   const toggleOrder = () => {
-    setOrderBy(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    dispatch(bookmarkActions.setOrderBy(orderBy === 'asc' ? 'desc' : 'asc'));
   };
   
 
@@ -197,7 +192,7 @@ const BookmarkScreen: React.FC<Props> = ({ navigation }) => {
                 activeOpacity={0.8}
                 style={styles.filterValueWrap}
                 onPress={() =>
-                  setFilterBy(prev => (prev === 'rating' ? 'date' : 'rating'))
+                  dispatch(bookmarkActions.setFilterBy(filterBy === 'rating' ? 'date' : 'rating'))
                 }
               >
                 <Text style={styles.filterValue}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,10 @@ import { HomeStackParamList, MovieItem } from '../navigator/types';
 import CategoryDropdown from '../components/CategoryDropdown';
 import AppFlashList from '../components/AppFlashList';
 import { movieApi, MovieListItem } from '../api/movieApi';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { moviesActions } from '../store';
 import AppLogoTheMovieDb from '../assets/app_logo_the_movie_db.svg';
+
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
 const categoryOptions = [
@@ -76,19 +79,15 @@ const MovieCard = ({
 };
 
 const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
-  const [search, setSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('now_playing');
-  const [selectedSort, setSelectedSort] = useState('sort_by');
-  const [rawMovies, setRawMovies] = useState<MovieListItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const dispatch = useAppDispatch();
+  const movies = useAppSelector(state => state.movies);
+  const { ui, data, status } = movies;
+  const { search, appliedSearch, selectedCategory, selectedSort } = ui;
+  const { rawMovies, page, totalPages } = data;
+  const { loading, loadingMore, error } = status;
 
   const handleSearchPress = () => {
-    setAppliedSearch(search.trim());
+    dispatch(moviesActions.setAppliedSearch(search.trim()));
   };
 
   const mapToMovieItem = (item: MovieListItem): MovieItem => {
@@ -140,8 +139,8 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const fetchMoviesByCategory = async (category: string, pageNum = 1) => {
     if (pageNum === 1) {
-      setLoading(true);
-      setError(null);
+      dispatch(moviesActions.setLoading(true));
+      dispatch(moviesActions.setError(null));
     }
 
     try {
@@ -157,43 +156,42 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
       if (result.success) {
         const newResults = result.data.results ?? [];
         if (pageNum === 1) {
-          setRawMovies(newResults);
+          dispatch(moviesActions.setMovies(newResults));
         } else {
-          setRawMovies(prev => [...prev, ...newResults]);
+          dispatch(moviesActions.appendMovies(newResults));
         }
-        setPage(pageNum);
-        setTotalPages(result.data.total_pages ?? 1);
+        dispatch(moviesActions.setPage(pageNum));
+        dispatch(moviesActions.setTotalPages(result.data.total_pages ?? 1));
       } else {
         if (pageNum === 1) {
-          setError(result.message || 'Failed to load movies');
-          setRawMovies([]);
+          dispatch(moviesActions.setError(result.message || 'Failed to load movies'));
+          dispatch(moviesActions.setMovies([]));
         }
       }
     } catch (e) {
       if (pageNum === 1) {
-        setError('Failed to load movies');
-        setRawMovies([]);
+        dispatch(moviesActions.setError('Failed to load movies'));
+        dispatch(moviesActions.setMovies([]));
       }
     } finally {
       if (pageNum === 1) {
-        setLoading(false);
+        dispatch(moviesActions.setLoading(false));
       }
     }
   };
 
   const loadMoreMovies = async () => {
     if (loading || loadingMore || page >= totalPages) return;
-    setLoadingMore(true);
+    dispatch(moviesActions.setLoadingMore(true));
     try {
       await fetchMoviesByCategory(selectedCategory, page + 1);
     } finally {
-      setLoadingMore(false);
+      dispatch(moviesActions.setLoadingMore(false));
     }
   };
 
   useEffect(() => {
-    setPage(1);
-    setTotalPages(1);
+    dispatch(moviesActions.resetPagination());
     fetchMoviesByCategory(selectedCategory, 1);
   }, [selectedCategory]);
 
@@ -222,17 +220,17 @@ const MovieHomeScreen: React.FC<Props> = ({ navigation }) => {
               <CategoryDropdown
                 options={categoryOptions}
                 value={selectedCategory}
-                onChange={setSelectedCategory}
+                onChange={value => dispatch(moviesActions.setCategory(value))}
               />
               <CategoryDropdown
                 options={sortOptions}
                 value={selectedSort}
-                onChange={setSelectedSort}
+                onChange={value => dispatch(moviesActions.setSort(value))}
               />
 
               <TextInput
                 value={search}
-                onChangeText={setSearch}
+                onChangeText={text => dispatch(moviesActions.setSearch(text))}
                 placeholder="Search..."
                 placeholderTextColor="#9b9b9b"
                 style={styles.searchInput}
